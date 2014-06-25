@@ -1,0 +1,7 @@
+bin/*
+gen/*
+.apt_generated/*
+.settings/*
+.factorypath
+.idea
+/.apt_generated
