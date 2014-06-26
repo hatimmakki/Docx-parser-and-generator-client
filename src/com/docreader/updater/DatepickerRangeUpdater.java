@@ -22,7 +22,8 @@ public class DatepickerRangeUpdater extends ParagraphRangeUpdater implements Dat
         this.button = button;
         button.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View v) {
-                DatePickerFragment dpf = new DatePickerFragment(DatepickerRangeUpdater.this); 
+                DatePickerFragment dpf = new DatePickerFragment();
+                dpf.setListener(DatepickerRangeUpdater.this); 
                 dpf.show(fragmentManager, "date-picker");
             }
         });

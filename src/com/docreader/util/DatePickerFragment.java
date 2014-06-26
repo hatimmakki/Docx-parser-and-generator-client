@@ -20,7 +20,7 @@ public class DatePickerFragment extends DialogFragment implements
     private DatePickerListener listener;
     protected boolean cancelled;
     
-    public DatePickerFragment(DatePickerListener listener) {
+    public void setListener(DatePickerListener listener) {
         this.listener = listener;
     }
     
