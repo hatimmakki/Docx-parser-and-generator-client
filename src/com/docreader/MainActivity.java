@@ -31,10 +31,13 @@ public class MainActivity extends BaseActivity {
             login();
             return;
         }
-        
+
         showFilenameDialog();
     }
-    
+
+    /**
+     * Name of file we will lookup in dropbox folder
+     */
     private void showFilenameDialog() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
@@ -54,13 +57,19 @@ public class MainActivity extends BaseActivity {
         });
 
         alert.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) { }
+            public void onClick(DialogInterface dialog, int whichButton) {
+            }
         });
 
         alert.show();
 
     }
 
+    /**
+     * Loading file from dropbox
+     * 
+     * @param dropboxFilename
+     */
     private void loadFile(String dropboxFilename) {
         final String filename = getApplicationContext().getCacheDir().getAbsoluteFile() + "/" + dropboxFilename;
         File file = new File(filename);
@@ -72,46 +81,48 @@ public class MainActivity extends BaseActivity {
         final ProgressDialog dialog = new ProgressDialog(this);
         dialog.setTitle("Getting file");
         dialog.show();
-        DropboxFileDownloader df = new DropboxFileDownloader(this, mApi, "/" + dropboxFilename, new DropboxTaskListener<byte[]>() {
+        DropboxFileDownloader df = new DropboxFileDownloader(this, mApi, "/" + dropboxFilename,
+                new DropboxTaskListener<byte[]>() {
 
-            @Override
-            public void onDownloadSuccess(byte[] data) {
-                FileOutputStream fos;
-                try {
-                    fos = new FileOutputStream(filename);
-                    fos.write(data);
-                    fos.close();
+                    @Override
+                    public void onDownloadSuccess(byte[] data) {
+                        FileOutputStream fos;
+                        try {
+                            fos = new FileOutputStream(filename);
+                            fos.write(data);
+                            fos.close();
 
-                    showToast("File saved");
+                            showToast("File saved");
 
-                    startActivity(DocumentActivity.getStartIntent(MainActivity.this, filename));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+                            startActivity(DocumentActivity.getStartIntent(MainActivity.this, filename));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
 
-            void showToast(String message) {
-                Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
-            }
+                    void showToast(String message) {
+                        Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                    }
 
-            @Override
-            public void onDownloadError() {
-                showToast("Error while getting file.");
-            }
+                    @Override
+                    public void onDownloadError() {
+                        showToast("Error while getting file.");
+                    }
 
-            @Override
-            public void onDownloadComplete() {
-                dialog.dismiss();
-            }
+                    @Override
+                    public void onDownloadComplete() {
+                        dialog.dismiss();
+                    }
 
-            @Override
-            public void onDownloadProgress(int percent) {
-                dialog.setProgress(percent);
-            }
-        });
+                    @Override
+                    public void onDownloadProgress(int percent) {
+                        dialog.setProgress(percent);
+                    }
+                });
         df.execute();
     }
-        @Click
+
+    @Click
     void buttonLogout() {
         logout();
     }

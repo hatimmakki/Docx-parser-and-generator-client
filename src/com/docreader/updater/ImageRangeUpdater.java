@@ -6,6 +6,7 @@ import android.widget.Button;
 
 public class ImageRangeUpdater extends ParagraphRangeUpdater {
     
+    @SuppressWarnings("unused")
     private Button button;
     private String filename;
 

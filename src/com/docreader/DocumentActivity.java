@@ -71,11 +71,16 @@ public class DocumentActivity extends BaseActivity {
         }
     }
 
+    /**
+     * Load file, parse and show it
+     * @param filename
+     * @throws Exception
+     */
     void loadDocument(String filename) throws Exception {
         lastFilename = filename;
         POIFSFileSystem fis = new POIFSFileSystem(new FileInputStream(filename));
         HWPFDocument doc = new HWPFDocument(fis);
-
+        
         Range r = doc.getRange();
 
         WordExtractor we = new WordExtractor(doc);
@@ -103,12 +108,12 @@ public class DocumentActivity extends BaseActivity {
 
             String prevKey = null;
             while (true) {
-                CharacterRun run = pr.getCharacterRun(characterRunNumber++);
+                CharacterRun segment = pr.getCharacterRun(characterRunNumber++);
 
                 String runKey = paragraphNumber + ":" + characterRunNumber;
 
-                String text = run.text();
-                switch (run.getHighlightedColor()) {
+                String text = segment.text();
+                switch (segment.getHighlightedColor()) {
                     case 6:
                         current = Types.BUTTON;
                         ignored.add(runKey);
@@ -125,15 +130,20 @@ public class DocumentActivity extends BaseActivity {
                         break;
                 }
 
-                // TODO: HERE!!!
-                if ((prev != Types.NONE && current != prev) || run.getEndOffset() == pr.getEndOffset()) {
+                // An interesting part
+                // One GREEN/RED block can be splitted by POI to several segments
+                // So to collect parts correctly I use something like FSM 
+                if ((prev != Types.NONE && current != prev) || segment.getEndOffset() == pr.getEndOffset()) {
+                    // For every kind of segment we add corresponding widget to layout
+                    
                     if (prev == Types.TEXT && 0 != sbText.length()) {
                         TextView parView = new TextView(this);
                         parView.setText(sbText.toString());
                         layoutParagraphs.addView(parView);
                         sbText = new StringBuilder();
                     }
-
+                    
+                    // RED block is represented with "LOAD DATA" (for date) and "BROWSE..." for image 
                     if (prev == Types.BUTTON && 0 != sbButton.length()) {
                         String buttonsText = sbButton.toString();
                         Button button = new Button(this);
@@ -157,6 +167,7 @@ public class DocumentActivity extends BaseActivity {
                         sbButton = new StringBuilder();
                     }
 
+                    // Edit texts for GREEN blocks
                     if (prev == Types.EDIT && 0 != sbEditText.length()) {
                         EditText editText = new EditText(this);
                         editText.setHint(sbEditText.toString());
@@ -169,7 +180,7 @@ public class DocumentActivity extends BaseActivity {
                 prev = current;
                 prevKey = runKey;
 
-                if (run.getEndOffset() == pr.getEndOffset()) {
+                if (segment.getEndOffset() == pr.getEndOffset()) {
                     break;
                 }
             }
@@ -179,6 +190,13 @@ public class DocumentActivity extends BaseActivity {
 
     @Click
     void buttonGenerate() {
+        showFilenameDialog();
+    }
+
+    /**
+     * Show result filename prompt
+     */
+    void showFilenameDialog() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
         alert.setTitle("Title");
@@ -192,7 +210,7 @@ public class DocumentActivity extends BaseActivity {
         alert.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String value = input.getText().toString();
-                saveFile(value);
+                saveDocument(value);
             }
         });
 
@@ -203,7 +221,11 @@ public class DocumentActivity extends BaseActivity {
         alert.show();
     }
 
-    private void saveFile(String filename) {
+    /**
+     * Saving file to Dropbox folder
+     * @param filename
+     */
+    private void saveDocument(String filename) {
         try {
             HWPFDocument docWrite = new HWPFDocument(new FileInputStream(new File(lastFilename)));
 
@@ -277,6 +299,12 @@ public class DocumentActivity extends BaseActivity {
         }
     }
 
+    /**
+     * Helper for startActivity intent creation
+     * @param context
+     * @param filename
+     * @return
+     */
     static public Intent getStartIntent(Context context, String filename) {
         Intent intent = new Intent(context, DocumentActivity_.class);
         intent.putExtra(EXTRA_FILENAME, filename);

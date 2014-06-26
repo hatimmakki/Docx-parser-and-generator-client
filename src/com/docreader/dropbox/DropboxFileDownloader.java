@@ -54,16 +54,16 @@ public class DropboxFileDownloader extends AsyncTask<Void, Long, byte[]> {
     private Long mFileLen;
     private String mErrorMsg;
 
-    private DropboxTaskListener listener;
+    private DropboxTaskListener<byte[]> listener;
 
-    public DropboxFileDownloader(Context context, DropboxAPI<?> api, String dropboxPath, DropboxTaskListener listener) {
+    public DropboxFileDownloader(Context context, DropboxAPI<?> api, String dropboxPath, DropboxTaskListener<byte[]> listener) {
         // We set the context this way so we don't accidentally leak activities
         mApi = api;
         mPath = dropboxPath;
         this.listener = listener;
     }
     
-    public void setListener(DropboxTaskListener listener) {
+    public void setListener(DropboxTaskListener<byte[]> listener) {
         this.listener = listener;
     }
 
