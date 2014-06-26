@@ -24,7 +24,7 @@
  */
 
 
-package com.docreader;
+package com.docreader.dropbox;
 
 import java.io.ByteArrayOutputStream;
 
@@ -32,7 +32,6 @@ import android.content.Context;
 import android.os.AsyncTask;
 
 import com.dropbox.client2.DropboxAPI;
-import com.dropbox.client2.DropboxAPI.DropboxFileInfo;
 import com.dropbox.client2.exception.DropboxException;
 import com.dropbox.client2.exception.DropboxIOException;
 import com.dropbox.client2.exception.DropboxParseException;
@@ -48,13 +47,6 @@ import com.dropbox.client2.exception.DropboxUnlinkedException;
 
 public class DropboxFileDownloader extends AsyncTask<Void, Long, byte[]> {
 
-    public interface FileDownloadListener {
-        public void onDownloadSuccess(byte[] data);
-        public void onDownloadError();
-        public void onDownloadComplete();
-        public void onDownloadProgress(int percent);
-    }
-    
     private DropboxAPI<?> mApi;
     private String mPath;
 
@@ -62,16 +54,16 @@ public class DropboxFileDownloader extends AsyncTask<Void, Long, byte[]> {
     private Long mFileLen;
     private String mErrorMsg;
 
-    private FileDownloadListener listener;
+    private DropboxTaskListener listener;
 
-    public DropboxFileDownloader(Context context, DropboxAPI<?> api, String dropboxPath, FileDownloadListener listener) {
+    public DropboxFileDownloader(Context context, DropboxAPI<?> api, String dropboxPath, DropboxTaskListener listener) {
         // We set the context this way so we don't accidentally leak activities
         mApi = api;
         mPath = dropboxPath;
         this.listener = listener;
     }
     
-    public void setListener(FileDownloadListener listener) {
+    public void setListener(DropboxTaskListener listener) {
         this.listener = listener;
     }
 
