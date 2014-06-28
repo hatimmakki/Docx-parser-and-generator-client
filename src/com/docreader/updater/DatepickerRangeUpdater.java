@@ -2,7 +2,7 @@ package com.docreader.updater;
 
 import java.util.GregorianCalendar;
 
-import org.apache.poi.hwpf.usermodel.CharacterRun;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 import android.support.v4.app.FragmentManager;
 import android.view.View;
@@ -31,9 +31,10 @@ public class DatepickerRangeUpdater extends ParagraphRangeUpdater implements Dat
     }
 
     @Override
-    public CharacterRun updateRange(CharacterRun range) {
-        range.replaceText(date, false);
-        range.setHighlighted((byte) 0);
+    public XWPFRun updateRange(XWPFRun range) {
+        range.setText(date, 0);
+//        range.getCTR().addNewRPr().addNewHighlight().setVal(org.openxmlformats.schemas.wordprocessingml.x2006.main.STHighlightColor.WHITE);
+        
         return range;
     }
     
