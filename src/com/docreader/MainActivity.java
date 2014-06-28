@@ -46,7 +46,7 @@ public class MainActivity extends BaseActivity {
 
         // Set an EditText view to get user input
         final EditText input = new EditText(this);
-        input.setText("/Test1.doc");
+        input.setText("/Test1.docx");
         alert.setView(input);
 
         alert.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {

@@ -2,39 +2,32 @@ package com.docreader.updater;
 
 import java.util.GregorianCalendar;
 
-import org.apache.poi.hwpf.usermodel.CharacterRun;
-
 import android.support.v4.app.FragmentManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 
+import com.docreader.api.request.BuilderRequestItem;
+import com.docreader.api.request.BuilderRequestItem.Type;
 import com.docreader.util.DatePickerFragment;
 import com.docreader.util.DatePickerFragment.DatePickerListener;
 import com.docreader.util.UtilDate;
 
-public class DatepickerRangeUpdater extends ParagraphRangeUpdater implements DatePickerListener {
+public class DatepickerSegmentUpdater extends SegmentValueUpdater implements DatePickerListener {
     
     private String date = "";
     private Button button;
 
-    public DatepickerRangeUpdater(final FragmentManager fragmentManager, Button button) {
+    public DatepickerSegmentUpdater(final FragmentManager fragmentManager, Button button) {
         this.button = button;
         button.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View v) {
                 DatePickerFragment dpf = new DatePickerFragment();
-                dpf.setListener(DatepickerRangeUpdater.this); 
+                dpf.setListener(DatepickerSegmentUpdater.this); 
                 dpf.show(fragmentManager, "date-picker");
             }
         });
 
-    }
-
-    @Override
-    public CharacterRun updateRange(CharacterRun range) {
-        range.replaceText(date, false);
-        range.setHighlighted((byte) 0);
-        return range;
     }
     
     @Override
@@ -48,6 +41,11 @@ public class DatepickerRangeUpdater extends ParagraphRangeUpdater implements Dat
         
         date = UtilDate.formatDate(cal);
         button.setText(date);
+    }
+
+    @Override
+    public BuilderRequestItem getRequestItem() {
+        return new BuilderRequestItem(Type.DATE, date);
     }
     
 }

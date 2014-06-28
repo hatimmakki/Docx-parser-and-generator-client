@@ -1,30 +1,21 @@
 package com.docreader;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Vector;
 
 import org.androidannotations.annotations.AfterViews;
+import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.ViewById;
-import org.apache.poi.hwpf.HWPFDocument;
-import org.apache.poi.hwpf.extractor.WordExtractor;
-import org.apache.poi.hwpf.usermodel.CharacterRun;
-import org.apache.poi.hwpf.usermodel.Paragraph;
-import org.apache.poi.hwpf.usermodel.Range;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -32,13 +23,17 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.docreader.dropbox.DropboxFileUploader;
-import com.docreader.dropbox.DropboxTaskListener;
-import com.docreader.updater.DatepickerRangeUpdater;
-import com.docreader.updater.EditTextRangeUpdater;
-import com.docreader.updater.ImageRangeUpdater;
-import com.docreader.updater.ParagraphRangeUpdater;
-import com.docreader.util.MyParagraph;
+import com.docreader.api.RestCommand;
+import com.docreader.api.RestManager;
+import com.docreader.api.request.DefaultRequestListener;
+import com.docreader.api.request.ParseCommand;
+import com.docreader.api.request.RequestCommand;
+import com.docreader.api.response.ParserResponse;
+import com.docreader.api.response.ParserResponse.ParserResponseItem;
+import com.docreader.updater.DatepickerSegmentUpdater;
+import com.docreader.updater.EditSegmentUpdater;
+import com.docreader.updater.ImageSegmentUpdater;
+import com.docreader.updater.SegmentValueUpdater;
 
 @EActivity(R.layout.activity_document)
 public class DocumentActivity extends BaseActivity {
@@ -48,18 +43,19 @@ public class DocumentActivity extends BaseActivity {
     }
 
     public static final String EXTRA_FILENAME = "filename";
-
     protected static final int IMAGE_PICKER_SELECT = 1;
 
+    @Bean
+    RestManager restManager;
     @ViewById
     LinearLayout layoutParagraphs;
 
-    private Vector<MyParagraph> parHolder = new Vector<MyParagraph>();
-    private List<Object> ignored = new Vector<Object>();
-    private Map<Object, ParagraphRangeUpdater> updaters = new HashMap<Object, ParagraphRangeUpdater>();
-
     private String lastFilename;
+    private ImageSegmentUpdater forImageUpdater;
 
+    List<SegmentValueUpdater> updaters = new Vector<SegmentValueUpdater>();
+    List<Bitmap> requestImages = new Vector<Bitmap>();
+    
     @AfterViews
     void afterViews() {
         String filename = getIntent().getStringExtra(EXTRA_FILENAME);
@@ -73,119 +69,78 @@ public class DocumentActivity extends BaseActivity {
 
     /**
      * Load file, parse and show it
+     * 
      * @param filename
      * @throws Exception
      */
     void loadDocument(String filename) throws Exception {
         lastFilename = filename;
-        POIFSFileSystem fis = new POIFSFileSystem(new FileInputStream(filename));
-        HWPFDocument doc = new HWPFDocument(fis);
-        
-        Range r = doc.getRange();
 
-        WordExtractor we = new WordExtractor(doc);
-        String[] paragraphs = we.getParagraphText();
-        we.close();
+        RestCommand<?> command = restManager.createCommand(new ParseCommand(new File(filename)),
+                new DefaultRequestListener<ParserResponse>() {
 
-        parHolder.clear();
-        updaters.clear();
-        ignored.clear();
+                    @Override
+                    public void onResponse(ParserResponse response, RequestCommand<ParserResponse> request) {
+                        updaters.clear();
+                        requestImages.clear();
 
-        MyParagraph myParagraph;
-        for (int paragraphNumber = 0; paragraphNumber < paragraphs.length; paragraphNumber++) {
-            Paragraph pr = r.getParagraph(paragraphNumber);
+                        for (ParserResponseItem item : response.getData()) {
+                            View view = null;
+                            switch (item.getType()) {
+                                case DATE:
+                                    Button datePicker = new Button(getApplicationContext());
+                                    datePicker.setText("Set date");
+                                    updaters.add(new DatepickerSegmentUpdater(getSupportFragmentManager(), datePicker));
+                                    view = datePicker;
+                                    break;
+                                case EDIT:
+                                    EditText editText = new EditText(getApplicationContext());
+                                    editText.setHint(item.getData().getHint());
+                                    updaters.add(new EditSegmentUpdater(editText));
+                                    view = editText;
 
-            myParagraph = new MyParagraph(pr);
-            parHolder.add(myParagraph);
+                                    break;
+                                case IMAGE:
+                                    Button imagePicker = new Button(getApplicationContext());
+                                    final ImageSegmentUpdater imageUpdater = new ImageSegmentUpdater(imagePicker, item
+                                            .getKey(), requestImages);
+                                    imagePicker.setText("Browse image");
+                                    imagePicker.setOnClickListener(new OnClickListener() {
 
-            int characterRunNumber = 0;
-            StringBuilder sbText = new StringBuilder();
-            StringBuilder sbEditText = new StringBuilder();
-            StringBuilder sbButton = new StringBuilder();
+                                        @Override
+                                        public void onClick(View v) {
+                                            forImageUpdater = imageUpdater;
+                                            Intent intent = new Intent(Intent.ACTION_PICK,
+                                                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                                            startActivityForResult(intent, IMAGE_PICKER_SELECT);
+                                        }
+                                    });
+                                    view = imagePicker;
 
-            Types prev = Types.NONE;
-            Types current = Types.NONE;
+                                    break;
+                                    
+                                case TEXT:
+                                    TextView textView = new TextView(getApplicationContext());
+                                    textView.setText(item.getData().getText());
+                                    view = textView;
+                                    break;
+                                default:
+                                    break;
 
-            String prevKey = null;
-            while (true) {
-                CharacterRun segment = pr.getCharacterRun(characterRunNumber++);
-
-                String runKey = paragraphNumber + ":" + characterRunNumber;
-
-                String text = segment.text();
-                switch (segment.getHighlightedColor()) {
-                    case 6:
-                        current = Types.BUTTON;
-                        ignored.add(runKey);
-                        sbButton.append(text);
-                        break;
-                    case 4:
-                        current = Types.EDIT;
-                        ignored.add(runKey);
-                        sbEditText.append(text);
-                        break;
-                    default:
-                        current = Types.TEXT;
-                        sbText.append(text);
-                        break;
-                }
-
-                // An interesting part
-                // One GREEN/RED block can be splitted by POI to several segments
-                // So to collect parts correctly I use something like FSM 
-                if ((prev != Types.NONE && current != prev) || segment.getEndOffset() == pr.getEndOffset()) {
-                    // For every kind of segment we add corresponding widget to layout
-                    
-                    if (prev == Types.TEXT && 0 != sbText.length()) {
-                        TextView parView = new TextView(this);
-                        parView.setText(sbText.toString());
-                        layoutParagraphs.addView(parView);
-                        sbText = new StringBuilder();
-                    }
-                    
-                    // RED block is represented with "LOAD DATA" (for date) and "BROWSE..." for image 
-                    if (prev == Types.BUTTON && 0 != sbButton.length()) {
-                        String buttonsText = sbButton.toString();
-                        Button button = new Button(this);
-                        if ("LOAD DATA".equals(buttonsText)) {
-                            button.setText("Set date");
-                            myParagraph.addTextSource(prevKey, new DatepickerRangeUpdater(getSupportFragmentManager(),
-                                    button));
-                        } else if ("BROWSE…".equals(buttonsText)) {
-                            button.setText("Browse image");
-                            button.setOnClickListener(new OnClickListener() {
-                                @Override
-                                public void onClick(View v) {
-                                    Intent intent = new Intent(Intent.ACTION_PICK,
-                                            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                                    startActivityForResult(intent, IMAGE_PICKER_SELECT);
-                                }
-                            });
-                            myParagraph.addTextSource(prevKey, new ImageRangeUpdater(button, "image.png"));
+                            }
+                            
+                            if (null != view)
+                                layoutParagraphs.addView(view);
                         }
-                        layoutParagraphs.addView(button);
-                        sbButton = new StringBuilder();
                     }
 
-                    // Edit texts for GREEN blocks
-                    if (prev == Types.EDIT && 0 != sbEditText.length()) {
-                        EditText editText = new EditText(this);
-                        editText.setHint(sbEditText.toString());
-                        layoutParagraphs.addView(editText);
-                        myParagraph.addTextSource(prevKey, new EditTextRangeUpdater(editText));
-                        sbEditText = new StringBuilder();
+                    @Override
+                    public void onComplete(RequestCommand<ParserResponse> request) {
+
                     }
-                }
 
-                prev = current;
-                prevKey = runKey;
-
-                if (segment.getEndOffset() == pr.getEndOffset()) {
-                    break;
-                }
-            }
-        }
-
+                });
+        command.execute();
     }
 
     @Click
@@ -215,7 +170,8 @@ public class DocumentActivity extends BaseActivity {
         });
 
         alert.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) { }
+            public void onClick(DialogInterface dialog, int whichButton) {
+            }
         });
 
         alert.show();
@@ -223,40 +179,14 @@ public class DocumentActivity extends BaseActivity {
 
     /**
      * Saving file to Dropbox folder
+     * 
      * @param filename
      */
     private void saveDocument(String filename) {
+        /*
         try {
-            HWPFDocument docWrite = new HWPFDocument(new FileInputStream(new File(lastFilename)));
-
-            WordExtractor we = new WordExtractor(docWrite);
-            String[] paragraphs = we.getParagraphText();
-            we.close();
-
-            Range r = docWrite.getRange();
-            for (int i = 0; i < paragraphs.length; i++) {
-                Paragraph pr = r.getParagraph(i);
-                MyParagraph myParagraph = parHolder.get(i);
-
-                int j = 0;
-                while (true) {
-                    CharacterRun run = pr.getCharacterRun(j++);
-                    run.setHighlighted((byte) 0);
-                    String runKey = i + ":" + j;
-
-                    if (myParagraph.hasTextSource(runKey)) {
-                        ParagraphRangeUpdater rangeUpdater = myParagraph.getRangeUpdater(runKey);
-                        rangeUpdater.updateRange(run);
-                    } else if (ignored.contains(runKey)) {
-                        run.replaceText("", false);
-                    }
-
-                    if (run.getEndOffset() == pr.getEndOffset()) {
-                        break;
-                    }
-                }
-            }
-
+            // TODO: request server
+            // new ReqCo
             final ProgressDialog dialog = new ProgressDialog(this);
             dialog.setTitle("Saving file");
             dialog.show();
@@ -291,6 +221,7 @@ public class DocumentActivity extends BaseActivity {
         } catch (Exception exception) {
             exception.printStackTrace();
         }
+        */
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -301,6 +232,7 @@ public class DocumentActivity extends BaseActivity {
 
     /**
      * Helper for startActivity intent creation
+     * 
      * @param context
      * @param filename
      * @return
