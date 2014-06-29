@@ -1,6 +1,6 @@
 package com.docreader.updater;
 
-import java.util.List;
+import java.util.Map;
 
 import android.graphics.Bitmap;
 import android.widget.Button;
@@ -13,17 +13,17 @@ public class ImageSegmentUpdater extends SegmentValueUpdater {
     @SuppressWarnings("unused")
     private Button button;
     private String filename;
-    private List<Bitmap> files;
+    private Map<String, Bitmap> files;
     private Bitmap bitmap;
 
-    public ImageSegmentUpdater(Button button, String filename, List<Bitmap> requestImages) {
+    public ImageSegmentUpdater(Button button, String filename, Map<String, Bitmap> requestImages) {
         this.button = button;
         this.filename = filename;
         this.files = requestImages;
     }
     
     public void setBitmap(Bitmap bitmap) {
-        this.bitmap = bitmap;
+        this.bitmap = Bitmap.createScaledBitmap(bitmap, 200, (int) (bitmap.getHeight() * (200D / bitmap.getWidth())), false);
     }
     
     @Override
@@ -33,7 +33,7 @@ public class ImageSegmentUpdater extends SegmentValueUpdater {
 
     @Override
     public BuilderRequestItem getRequestItem() {
-        files.add(bitmap);
+        files.put(filename, bitmap);
         return new BuilderRequestItem(Type.IMAGE, filename, bitmap.getWidth(), bitmap.getHeight());
     }
 

@@ -11,7 +11,7 @@ import com.docreader.api.request.RequestListener;
 @EBean
 public class RestManager {
 
-    // TODO: add BuildConfig.DEBUG
+    // Yes, I know about BuildConfig.DEBUG
 //    public static final String SERVER = "http://192.168.56.1:4567";
     public static final String SERVER = "http://ryabenko.pro:4567";
 

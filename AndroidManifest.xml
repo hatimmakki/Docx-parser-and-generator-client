@@ -28,12 +28,15 @@
         
         <activity
             android:name="com.docreader.DocumentActivity_"
+            android:configChanges="orientation"
+            android:screenOrientation="portrait"
             android:label="Document" >
         </activity>
         
         <activity
             android:name="com.dropbox.client2.android.AuthActivity"
-            android:configChanges="orientation|keyboard"
+            android:configChanges="orientation"
+            android:screenOrientation="portrait"
             android:launchMode="singleTask" >
             <intent-filter>
                 <!-- Change this to be db- followed by your app key -->
